@@ -1,0 +1,20 @@
+# The binary is compiled from the `hello-world.c` file in the root of the project.
+
+# raftpm version. Must be specified.
+raftpm-version: 0.0.1
+
+# Mandatory about.
+pkg-about:
+  pkg-name: helloworld # Must only contaion the following characters: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-1234567890
+  pkg-version: 1.0.0
+  is-open-source: false
+  short-description: Sample hello world package written in c.
+  # long-decription: Add long description if needed.
+
+# List all the usable binaries in the registry.
+app-bin-registry:
+  hello-world: "bin/hello-world"
+
+# Specify all the symlink names of the registered binaries. Those can be called from terminal.
+app-cli-name:
+  hello-world: "helloworld"
