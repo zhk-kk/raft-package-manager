@@ -15,7 +15,7 @@ func newRunCommand() *runCommand {
 		fs: flag.NewFlagSet("run", flag.ContinueOnError),
 	}
 
-	rc.fs.StringVar(&rc.name, "name", "World", "name of the person to be greeted")
+	// rc.fs.StringVar(&rc.name, "name", "World", "name of the person to be greeted")
 
 	return rc
 }

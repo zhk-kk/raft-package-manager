@@ -15,7 +15,7 @@ func newVerifyPkgCommand() *verifyPkgCommand {
 		fs: flag.NewFlagSet("info", flag.ContinueOnError),
 	}
 
-	vpc.fs.StringVar(&vpc.name, "name", "World", "name of the person to be greeted")
+	// vpc.fs.StringVar(&vpc.name, "name", "World", "name of the person to be greeted")
 
 	return vpc
 }

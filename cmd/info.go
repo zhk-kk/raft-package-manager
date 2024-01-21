@@ -15,7 +15,7 @@ func newInfoCommand() *infoCommand {
 		fs: flag.NewFlagSet("info", flag.ContinueOnError),
 	}
 
-	ic.fs.StringVar(&ic.name, "name", "World", "name of the person to be greeted")
+	// ic.fs.StringVar(&ic.name, "name", "World", "name of the person to be greeted")
 
 	return ic
 }
