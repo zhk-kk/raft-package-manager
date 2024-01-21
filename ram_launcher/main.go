@@ -1,51 +1,70 @@
 package main
 
-// const APPS_SYMLINKS_SUB_PATH = "apps"
-// const DATABASE_SUB_PATH = "database"
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+)
 
 func main() {
-
-	// userHomeDir, err := os.UserHomeDir()
-	// if err != nil {
-	// 	log.Fatalln("Unable to obtain the path of the user home directory.")
-	// }
-
-	// ramlRunPath, err := filepath.Abs(os.Args[0])
-	// if err != nil {
-	// 	log.Fatalln("Unable to obtain the path of the file, from which the raml was ran.")
-	// }
-	// ramlExePath, err := os.Executable()
-	// if err != nil {
-	// 	log.Fatalln("Unable to obtain the raml executable path.")
-	// }
-
-	// isRamlDirectRun := false
-	// if ramlRunPath == ramlExePath {
-	// 	isRamlDirectRun = true
-	// }
-
-	// ramStorePath := path.Join(userHomeDir, ".local", "share", "ram-store")
-	// if err != nil {
-	// 	log.Fatalln("Unable to obtain the ram store path.")
-	// }
-
-	// if _, err := os.Stat(ramStorePath); errors.Is(err, os.ErrNotExist) {
-	// 	fmt.Println("`ramstore` doesn't seem to have been initialized. Creating the ramstore.")
-	// 	initRamStore(ramStorePath)
-	// func initRamStore(ramStorePath string) {
-	// 	os.MkdirAll(ramStorePath, os.ModePerm)
-	// 	os.MkdirAll(path.Join(ramStorePath, APPS_SYMLINKS_SUB_PATH), os.ModePerm)
-	// 	os.MkdirAll(path.Join(ramStorePath, DATABASE_SUB_PATH), os.ModePerm)
-	// }
-	// }
-
-	// fmt.Println("Raml was run from:     ", ramlRunPath)
-	// fmt.Println("Raml executable is at: ", ramlExePath)
-	// fmt.Println(isRamlDirectRun)
+	if err := root(os.Args[1:]); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
-// func initRamStore(ramStorePath string) {
-// 	os.MkdirAll(ramStorePath, os.ModePerm)
-// 	os.MkdirAll(path.Join(ramStorePath, APPS_SYMLINKS_SUB_PATH), os.ModePerm)
-// 	os.MkdirAll(path.Join(ramStorePath, DATABASE_SUB_PATH), os.ModePerm)
-// }
+type Runner interface {
+	Init([]string) error
+	Run() error
+	Name() string
+}
+
+type InfoCommand struct {
+	fs   *flag.FlagSet
+	name string
+}
+
+func NewInfoCommand() *InfoCommand {
+	ic := &InfoCommand{
+		fs: flag.NewFlagSet("greet", flag.ContinueOnError),
+	}
+
+	ic.fs.StringVar(&ic.name, "name", "World", "name of the person to be greeted")
+
+	return ic
+}
+
+func (i *InfoCommand) Name() string {
+	return i.fs.Name()
+}
+
+func (i *InfoCommand) Init(args []string) error {
+	return i.fs.Parse(args)
+}
+
+func (i *InfoCommand) Run() error {
+	fmt.Println("Info was called.")
+	return nil
+}
+
+func root(args []string) error {
+	if len(args) < 1 {
+		return errors.New("You must provide a sub-command when running `raftpm`")
+	}
+
+	cmds := []Runner{
+		NewInfoCommand(),
+	}
+
+	subcommand := os.Args[1]
+
+	for _, cmd := range cmds {
+		if cmd.Name() == subcommand {
+			cmd.Init(os.Args[2:])
+			return cmd.Run()
+		}
+	}
+
+	return fmt.Errorf("Unknown subcommand: %s", subcommand)
+}
