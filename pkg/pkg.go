@@ -1,64 +1,36 @@
 package pkg
 
 import (
+	"bufio"
 	"errors"
-	"strings"
+	"fmt"
+	"io"
+	"os"
+	"path"
 
-	"github.com/blang/semver/v4"
+	"github.com/zhk-kk/raftpm/pkg/manifest"
+	pkgpath "github.com/zhk-kk/raftpm/pkg/path"
 )
 
-func IsNameAllowed(name string) bool {
-	for _, c := range name {
-		if !(('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || c == '_' || c == '-') {
-			return false
-		}
+// CompileTemplate validates and compiles the template.
+func CompileTemplate(templatePath string) (*bufio.Reader, error) {
+	manifestFile, err := os.Open(path.Join(templatePath, pkgpath.ManifestFile))
+	if err != nil {
+		return nil, err
 	}
-	return true
-}
+	defer manifestFile.Close()
 
-type PackageName struct {
-	Name    string
-	Version *semver.Version
-}
-
-// `pkgname` is written in the following format: `name:0.0.1-beta`. Version is optional.
-func NewPackageName(pkgname string) (PackageName, error) {
-	name, version, isContainsVersion := strings.Cut(pkgname, ":")
-
-	new := PackageName{
-		Name:    name,
-		Version: nil,
+	rawManifest, err := io.ReadAll(manifestFile)
+	if err != nil {
+		return nil, err
 	}
 
-	if isContainsVersion {
-		newVersion, err := semver.Make(version)
-		if err != nil {
-			return new, err
-		}
-		new.Version = &newVersion
+	pkgCommonInfo := manifest.PkgCommonInfo{}
+	pkgManifest, err := manifest.ParseManifest(rawManifest, &pkgCommonInfo)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse manifest: %w", err)
 	}
+	fmt.Println(pkgCommonInfo, pkgManifest)
 
-	if err := new.IsValid(); err != nil {
-		return new, err
-	}
-
-	return new, nil
-}
-
-// Validate() returns an error if the provided PackageName is invalid.
-func (p *PackageName) IsValid() error {
-	if !IsNameAllowed(p.Name) {
-		return errors.New("package name contains prohibited special characters")
-	}
-
-	return nil
-}
-
-func (p *PackageName) IsEqual(other *PackageName) bool {
-	if p.Version == nil && other.Version == nil {
-		return p.Name == other.Name
-	} else if p.Version != nil && other.Version != nil {
-		return p.Name == other.Name && p.Version.Equals(*other.Version)
-	}
-	return false
+	return nil, errors.ErrUnsupported
 }

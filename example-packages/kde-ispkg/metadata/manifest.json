@@ -1,0 +1,11 @@
+{
+    "type": "isPkg",
+    "iscripts": [
+        {
+            "type": "desktop-environment",
+            "shell": ["sh", "bash"],
+            "target": "kde",
+            "capabilities": ["desktop-autorun", "desktop-icons"]
+        }
+    ]
+}

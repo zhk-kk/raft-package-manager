@@ -1,0 +1,19 @@
+{
+    "raftpmVersion": "0.0.0",
+    "name": "helloworld",
+    "version": "0.1.0",
+    "type": "binPkg",
+    "arch": {
+        "cpu": ["x86_64"],
+        "os": ["linux"]
+    },
+    "about": {
+        "description": "A sample hello world program"
+    },
+    "binRegistry": {
+        "appExe": "path:helloworld"
+    },
+    "binShellExe": {
+        "helloworld": "appExe"
+    }
+}
