@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/zhk-kk/raftpm/pkg"
@@ -34,16 +35,18 @@ func (pc *pkgCompile) Parse(args []string) error {
 		return fmt.Errorf("pkg-compile: %w: `-src`", ErrArgumentMustBeSpecified)
 	}
 
-	reader, err := pkg.CompileTemplate(pc.srcPath)
+	// Create the resulting file.
+	out, err := os.Create(pc.outPath)
 	if err != nil {
 		return err
 	}
+	defer out.Close()
 
-	var p []byte
-	if _, err := reader.Read(p); err != nil {
-		return err
+	if err := pkg.CompileTemplate(pc.srcPath, out); err != nil {
+		// Delete the newly-created file and return an error.
+		os.Remove(pc.outPath)
+		return fmt.Errorf("couldn't compile the template: %w", err)
 	}
-	fmt.Println(p)
 
 	return nil
 }

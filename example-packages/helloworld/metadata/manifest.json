@@ -11,7 +11,7 @@
         "description": "A sample hello world program"
     },
     "binRegistry": {
-        "appExe": "path:helloworld"
+        "appExe": "local:helloworld"
     },
     "binShellExe": {
         "helloworld": "appExe"
