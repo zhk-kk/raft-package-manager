@@ -1,11 +1,18 @@
 {
     "type": "isPkg",
-    "iscripts": [
+    "raftpmVersion": "0.0.0",
+    "version": "0.1.0",
+    "targetName": "kde",
+    "targetType": "desktopEnvironment",
+    "detectionScript": "local:detect.sh",
+    "capabilityScripts": [
         {
-            "type": "desktop-environment",
-            "shell": ["sh", "bash"],
-            "target": "kde",
-            "capabilities": ["desktop-autorun", "desktop-icons"]
+            "capability": "autorun",
+            "path": "local:autorun.sh"
+        },
+        {
+            "capability": "desktopApp",
+            "path": "local:desktopApp.sh"
         }
     ]
 }

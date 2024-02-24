@@ -3,6 +3,7 @@ package manifest
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/blang/semver/v4"
 	"github.com/zhk-kk/raftpm/pkg/common"
@@ -42,13 +43,6 @@ func ParseManifest(raw []byte, outPkgCommonInfo *PkgCommonInfo) (interface{}, er
 	}
 	(*outPkgCommonInfo).PkgVersion = pkgVersion
 
-	// Retrieve the package name.
-	pkgName, err := common.ParseMapField[string](m, "name")
-	if err != nil {
-		return nil, err
-	}
-	(*outPkgCommonInfo).PkgName = pkgName
-
 	// Retrieve the package type.
 	pkgType, err := common.ParseMapField[string](m, "type")
 	if err != nil {
@@ -58,44 +52,43 @@ func ParseManifest(raw []byte, outPkgCommonInfo *PkgCommonInfo) (interface{}, er
 	// Parse the rest of the manifest according to the package type.
 	switch pkgType {
 	case "binPkg":
-		result := BinaryPkg{BinRegistry: make(map[string]common.PkgPath)}
+		result := BinaryPkg{}
 		if err := json.Unmarshal(raw, &result); err != nil {
 			return nil, err
 		}
-
-		// Retrieve the binary registry.
-		binRegistry, err := common.ParseMapField[map[string]interface{}](m, "binRegistry")
-		if err != nil {
+		return result, nil
+	case "isPkg":
+		result := IntegrationScriptsPkg{}
+		if err := json.Unmarshal(raw, &result); err != nil {
 			return nil, err
-		}
-
-		// Parse the binary registry.
-		for entry, p := range binRegistry {
-			pString, ok := p.(string)
-			if !ok {
-				return result, common.ErrWrongFieldType
-			}
-			pkgPath, err := common.PkgPathFromString(pString)
-			if err != nil {
-				return result, err
-			}
-			result.BinRegistry[entry] = pkgPath
 		}
 		return result, nil
 	default:
-		return nil, ErrUnknownPkgType
+		return nil, fmt.Errorf("%w `%s`", ErrUnknownPkgType, pkgType)
 	}
 }
 
 type PkgCommonInfo struct {
 	PkgVersion    semver.Version
 	RaftpmVersion semver.Version
-	PkgName       string
 }
 
 type BinaryPkg struct {
+	Name        string                    `json:"name"`
 	Arch        map[string][]string       `json:"arch"`
 	About       map[string]string         `json:"about"`
-	BinRegistry map[string]common.PkgPath `json:"-"`
+	BinRegistry map[string]common.PkgPath `json:"binRegistry"`
 	BinShellExe map[string]string         `json:"binShellExe"`
+}
+
+type IntegrationScriptsPkg struct {
+	TargetName          string         `json:"targetName"`
+	TargetType          string         `json:"targetType"`
+	DetectionScriptPath common.PkgPath `json:"detectionScript"`
+	CapabilityScripts   []CapabilityScriptDesc
+}
+
+type CapabilityScriptDesc struct {
+	Capability string         `json:"capability"`
+	Path       common.PkgPath `json:"path"`
 }

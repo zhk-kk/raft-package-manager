@@ -31,6 +31,34 @@ var (
 	AllowedArchOs  = []string{"bsd", "linux", "macos"}
 )
 
+// SelfPackage generates a package from currently running raftpm itself.
+// func SelfPackage(w io.Writer, additionalCopyData map[string][]byte) error {
+// 	if err := global.Init(); err != nil {
+// 		return err
+// 	}
+
+// 	files := make(map[string][]byte)
+
+// 	// Add all the additional copy data
+// 	if len(additionalCopyData) != 0 {
+// 		for p, contents := range additionalCopyData {
+// 			files[pkgpath.CopyDataDir+"/"+p] = contents
+// 		}
+// 	}
+
+// 	// Add the raftpm executable itself
+// 	raftpmFile, err := os.Open(global.Global.RunningExecutablePath())
+// 	if err != nil {
+// 		return err
+// 	}
+// 	files[pkgpath.CopyDataDir+"/"+"raftpm"], err = io.ReadAll(raftpmFile)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return nil
+// }
+
 // CompileTemplate validates and compiles the template.
 func CompileTemplate(templatePath string, w io.Writer) error {
 	// Parse the manifest file.
@@ -55,6 +83,10 @@ func CompileTemplate(templatePath string, w io.Writer) error {
 	switch pkgManifest := pkgManifest.(type) {
 	case manifest.BinaryPkg:
 		if err := validateBinaryPkgTemplate(templatePath, pkgManifest); err != nil {
+			return fmt.Errorf("%w: %w", ErrCouldNotValidateTemplate, err)
+		}
+	case manifest.IntegrationScriptsPkg:
+		if err := validateIntegrationScriptsPkgTemplate(templatePath, pkgManifest); err != nil {
 			return fmt.Errorf("%w: %w", ErrCouldNotValidateTemplate, err)
 		}
 	default:
@@ -101,7 +133,7 @@ func CompileTemplate(templatePath string, w io.Writer) error {
 		}
 
 		// Check if the file is executable.
-		if (fileInfo.Mode()&0100 != 0 || fileInfo.Mode()&0010 != 0 || fileInfo.Mode()&0001 != 0) && relativeRootDir != "metadata" {
+		if fileInfo.Mode()&0100 != 0 || fileInfo.Mode()&0010 != 0 || fileInfo.Mode()&0001 != 0 {
 			executableFiles += relativePath + "\n"
 		}
 
@@ -165,40 +197,40 @@ func CompileTemplate(templatePath string, w io.Writer) error {
 	return nil
 }
 
-// validateBinaryPkgTemplate validates the binary package template, or returns an error.
-func validateBinaryPkgTemplate(templatePath string, binPkgManifest manifest.BinaryPkg) error {
-	const (
-		pathRequiredFile = iota
-		pathRequiredDir  = iota
-		pathMasked       = iota
-	)
+const (
+	templateDirValidatorRequiredFile = iota
+	templateDirValidatorRequiredDir  = iota
+	templateDirValidatorMasked       = iota
+)
 
-	pathRegistry := map[string]int{
-		templatePath: pathRequiredDir,
-		path.Join(templatePath, pkgpath.MetadataDir):  pathRequiredDir,
-		path.Join(templatePath, pkgpath.ManifestFile): pathRequiredFile,
-		path.Join(templatePath, pkgpath.IgnoreDir):    pathMasked,
-		path.Join(templatePath, pkgpath.CopyDataDir):  pathRequiredDir,
+type templateDirValidator struct {
+	registry     map[string]int
+	templatePath string
+}
+
+func newTemplateDirValidator(templatePath string) templateDirValidator {
+	t := templateDirValidator{
+		registry:     map[string]int{templatePath: templateDirValidatorRequiredDir},
+		templatePath: templatePath,
 	}
+	return t
+}
 
-	// Require all the BinRegistry paths.
-	for _, p := range binPkgManifest.BinRegistry {
-		if p.Type != common.PkgPathTypeLocal {
-			continue
-		}
-		pathRegistry[path.Join(templatePath, pkgpath.CopyDataDir, p.Path)] = pathRequiredFile
-	}
+func (t templateDirValidator) Mask(path string) {
+	t.registry[path] = templateDirValidatorMasked
+}
 
-	// Verify that only registered binaries are referenced.
-	for _, bin := range binPkgManifest.BinShellExe {
-		if _, ok := binPkgManifest.BinRegistry[bin]; !ok {
-			return fmt.Errorf("%w: `%s`", ErrUnregisteredBinaryReferenced, bin)
-		}
-	}
+func (t templateDirValidator) RequireDir(path string) {
+	t.registry[path] = templateDirValidatorRequiredDir
+}
 
-	// Go through the path registry.
-	for p, mode := range pathRegistry {
-		if mode == pathMasked {
+func (t templateDirValidator) RequireFile(path string) {
+	t.registry[path] = templateDirValidatorRequiredFile
+}
+
+func (t templateDirValidator) Validate() error {
+	for p, mode := range t.registry {
+		if mode == templateDirValidatorMasked {
 			continue
 		}
 
@@ -208,18 +240,74 @@ func validateBinaryPkgTemplate(templatePath string, binPkgManifest manifest.Bina
 		}
 
 		switch mode {
-		case pathRequiredFile:
+		case templateDirValidatorRequiredFile:
 			if stat.IsDir() {
 				return fmt.Errorf("%w: `%s`", ErrRequiredFileIsDir, p)
 			}
-		case pathRequiredDir:
+		case templateDirValidatorRequiredDir:
 			if !stat.IsDir() {
 				return fmt.Errorf("%w: `%s`", ErrRequiredDirIsFile, p)
 			}
 		}
 	}
-
 	return nil
+}
+
+// validateBinaryPkgTemplate validates the binary package template, or returns an error.
+func validateBinaryPkgTemplate(templatePath string, binPkgManifest manifest.BinaryPkg) error {
+	v := newTemplateDirValidator(templatePath)
+
+	v.Mask(path.Join(templatePath, pkgpath.IgnoreDir))
+	v.RequireFile(path.Join(templatePath, pkgpath.ManifestFile))
+	v.RequireDir(path.Join(templatePath, pkgpath.MetadataDir))
+	v.RequireDir(path.Join(templatePath, pkgpath.CopyDataDir))
+
+	// Require all the BinRegistry paths.
+	for _, p := range binPkgManifest.BinRegistry {
+		if p.Type != common.PkgPathTypeLocal {
+			continue
+		}
+		v.RequireFile(path.Join(templatePath, pkgpath.CopyDataDir, p.Path))
+	}
+
+	// Verify that only registered binaries are referenced.
+	for _, bin := range binPkgManifest.BinShellExe {
+		if _, ok := binPkgManifest.BinRegistry[bin]; !ok {
+			return fmt.Errorf("%w: `%s`", ErrUnregisteredBinaryReferenced, bin)
+		}
+	}
+
+	return v.Validate()
+}
+
+// validateIntegrationScriptsPkgTemplate validates the
+// integration scripts package template, or returns an error.
+func validateIntegrationScriptsPkgTemplate(
+	templatePath string, isPkgManifest manifest.IntegrationScriptsPkg,
+) error {
+	v := newTemplateDirValidator(templatePath)
+
+	v.Mask(path.Join(templatePath, pkgpath.IgnoreDir))
+	v.RequireFile(path.Join(templatePath, pkgpath.ManifestFile))
+	v.RequireDir(path.Join(templatePath, pkgpath.MetadataDir))
+	v.RequireDir(path.Join(templatePath, pkgpath.IntegrationScriptsDir))
+
+	if isPkgManifest.DetectionScriptPath.Type == common.PkgPathTypeLocal {
+		v.RequireFile(path.Join(
+			templatePath,
+			pkgpath.IntegrationScriptsDir,
+			isPkgManifest.DetectionScriptPath.Path,
+		))
+	}
+
+	// Require all the capability scripts.
+	for _, s := range isPkgManifest.CapabilityScripts {
+		if s.Path.Type == common.PkgPathTypeLocal {
+			v.RequireFile(path.Join(templatePath, pkgpath.IntegrationScriptsDir, s.Path.Path))
+		}
+	}
+
+	return v.Validate()
 }
 
 // encodeMetadataFile strips the metadata file of all the unnecessary characters, and applies a base64 encoding.
