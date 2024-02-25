@@ -17,7 +17,11 @@ func main() {
 
 	// Register the subcommands.
 	resolver := cmd.NewResolver([]cmd.Subcommand{
-		cmd.NewNested("develop", []cmd.Subcommand{cmd.NewPkgCompile()}),
+		cmd.NewNested("develop", []cmd.Subcommand{
+			cmd.NewPkgCompile(),
+			cmd.NewWorkspaceInit(),
+		}),
+		cmd.NewDeploy(),
 	})
 
 	// Parse the arguments, running requested modules.

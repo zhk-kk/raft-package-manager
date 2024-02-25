@@ -1,17 +1,12 @@
 package cmd
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path"
 
 	"github.com/zhk-kk/raftpm/pkg"
-)
-
-var (
-	ErrPkgCompileNoSourcePathProvided = errors.New("pkg-compile: no source path provided")
 )
 
 type pkgCompile struct {
