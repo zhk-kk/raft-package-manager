@@ -1,2 +1,3 @@
 # raft-package-manager
-Portable package manager meant to be used from a usb flash drive, or any other removable storage.
+Portable package manager that doesn't require superuser priveleges to install and use packages.
+RaftPM is meant to be quickly deployed from a removable storage device.
