@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/zhk-kk/raftpm/global"
 	"github.com/zhk-kk/raftpm/pkg/common"
 	"github.com/zhk-kk/raftpm/pkg/manifest"
 	"github.com/zhk-kk/raftpm/pkg/paths"
@@ -32,42 +33,88 @@ var (
 )
 
 // GenerateSelfPackage makes a package from the currently running raftpm instance itself.
-// func GenerateSelfPackage(w io.Writer) error {
-// 	if err := global.Init(); err != nil {
-// 		return err
-// 	}
+func GenerateSelfPackage(w io.Writer) error {
+	if err := global.Init(); err != nil {
+		return err
+	}
 
-// 	files := make(map[string][]byte)
+	// Create the archive.
+	ar := archiver.NewArchiver(w)
+	defer ar.Close()
 
-// }
+	// Create the directories.
+	ar.CreateDir("cpdata")
+	ar.CreateDir("metadata")
 
-// SelfPackage generates a package from currently running raftpm itself.
-// func SelfPackage(w io.Writer, additionalCopyData map[string][]byte) error {
-// 	if err := global.Init(); err != nil {
-// 		return err
-// 	}
+	// Read the cpData files, and add them to the archive.
+	cpFiles := []string{"CODE_OF_CONDUCT.md", "raftpm"}
+	for _, name := range cpFiles {
+		builder := ar.FileBuilder(path.Join("cpdata", name))
+		file, err := os.Open(path.Join(global.Global.RunningExecutableDir(), name))
+		if err != nil {
+			return err
+		}
 
-// 	files := make(map[string][]byte)
+		// Apply the mode.
+		if stat, err := file.Stat(); err != nil {
+			return err
+		} else {
+			builder.Mode(stat.Mode())
+		}
 
-// 	// Add all the additional copy data
-// 	if len(additionalCopyData) != 0 {
-// 		for p, contents := range additionalCopyData {
-// 			files[paths.CopyDataDir+"/"+p] = contents
-// 		}
-// 	}
+		// Build the file.
+		w, err := builder.Build()
+		if err != nil {
+			return err
+		}
 
-// 	// Add the raftpm executable itself
-// 	raftpmFile, err := os.Open(global.Global.RunningExecutablePath())
-// 	if err != nil {
-// 		return err
-// 	}
-// 	files[paths.CopyDataDir+"/"+"raftpm"], err = io.ReadAll(raftpmFile)
-// 	if err != nil {
-// 		return err
-// 	}
+		// Read the file, and add it to the archive.
+		fileBuf, err := io.ReadAll(file)
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write(fileBuf); err != nil {
+			return err
+		}
+	}
 
-// 	return nil
-// }
+	// Add the manifest.
+	rawManifest := `{
+		"raftpmVersion": "0.0.0",
+		"name": "raftpm",
+		"version": "0.1.0",
+		"type": "binPkg",
+		"arch": {
+			"cpu": ["x86_64"],
+			"os": ["linux"]
+		},
+		"about": {
+			"description": "A sample hello world program"
+		},
+		"binRegistry": {
+			"raftpm": "local:raftpm"
+		},
+		"binShellExe": {
+			"raftpm": "raftpm"
+		}
+	}`
+
+	compiledManifest, err := encodeMetadataFile([]byte(rawManifest), true)
+	if err != nil {
+		return err
+	}
+
+	manifestW, err := ar.FileBuilder("metadata/manifest").Build()
+	if err != nil {
+		return err
+	}
+
+	if _, err := manifestW.Write(compiledManifest); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // CompileTemplate validates and compiles the template.
 func CompileTemplate(templatePath string, w io.Writer) error {

@@ -3,6 +3,9 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"os"
+
+	"github.com/zhk-kk/raftpm/pkg"
 )
 
 type selfPackage struct {
@@ -21,7 +24,19 @@ func (sp *selfPackage) Parse(args []string) error {
 	sp.fs.Parse(args)
 
 	if sp.pathOut == "" {
-		return fmt.Errorf("self-package: %w: `-path`", ErrArgumentMustBeSpecified)
+		return fmt.Errorf("self-package: %w: `-out`", ErrArgumentMustBeSpecified)
+	}
+
+	// Create the resulting file.
+	out, err := os.Create(sp.pathOut)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if err := pkg.GenerateSelfPackage(out); err != nil {
+		os.Remove(sp.pathOut)
+		return err
 	}
 
 	return nil
