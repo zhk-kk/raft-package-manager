@@ -78,4 +78,4 @@ func NewNested(name string, subcommands []Subcommand) *nested {
 func (n *nested) Name() string { return n.name }
 
 // Dummy function.
-func (n *nested) Parse(args []string) error { return nil }
+func (*nested) Parse(args []string) error { return nil }

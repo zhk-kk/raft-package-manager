@@ -3,17 +3,20 @@ package store
 import (
 	"os"
 	"path"
+
+	"github.com/zhk-kk/raftpm/workspace/config"
 )
 
 type Store struct {
-	path string
+	path   string
+	config *config.Config
 }
 
 func (s Store) appsPath() string     { return path.Join(s.path, "apps") }
 func (s Store) iscriptsPath() string { return path.Join(s.path, "iscripts") }
 
-func NewStore(storePath string) *Store {
-	l := Store{path: storePath}
+func NewStore(storePath string, config *config.Config) *Store {
+	l := Store{path: storePath, config: config}
 	return &l
 }
 

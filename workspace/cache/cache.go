@@ -1,13 +1,18 @@
 package cache
 
-import "os"
+import (
+	"os"
+
+	"github.com/zhk-kk/raftpm/workspace/config"
+)
 
 type Cache struct {
-	path string
+	path   string
+	config *config.Config
 }
 
-func NewCache(cachePath string) *Cache {
-	l := Cache{path: cachePath}
+func NewCache(cachePath string, config *config.Config) *Cache {
+	l := Cache{path: cachePath, config: config}
 	return &l
 }
 

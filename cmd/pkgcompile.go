@@ -46,4 +46,4 @@ func (pc *pkgCompile) Parse(args []string) error {
 	return nil
 }
 
-func (pc *pkgCompile) Name() string { return "pkg-compile" }
+func (*pkgCompile) Name() string { return "pkg-compile" }

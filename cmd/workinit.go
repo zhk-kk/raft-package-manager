@@ -50,4 +50,4 @@ func (wi *workspaceInit) Parse(args []string) error {
 	return nil
 }
 
-func (wi *workspaceInit) Name() string { return "workspace-init" }
+func (workspaceInit) Name() string { return "workspace-init" }

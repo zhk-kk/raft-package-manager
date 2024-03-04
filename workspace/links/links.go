@@ -1,13 +1,18 @@
 package links
 
-import "os"
+import (
+	"os"
+
+	"github.com/zhk-kk/raftpm/workspace/config"
+)
 
 type Links struct {
-	path string
+	path   string
+	config *config.Config
 }
 
-func NewLinks(linksPath string) *Links {
-	l := Links{path: linksPath}
+func NewLinks(linksPath string, config *config.Config) *Links {
+	l := Links{path: linksPath, config: config}
 	return &l
 }
 

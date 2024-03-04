@@ -20,6 +20,7 @@ func main() {
 		cmd.NewNested("develop", []cmd.Subcommand{
 			cmd.NewPkgCompile(),
 			cmd.NewWorkspaceInit(),
+			cmd.NewSelfPackage(),
 		}),
 		cmd.NewDeploy(),
 	})
